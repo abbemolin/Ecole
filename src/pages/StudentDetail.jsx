@@ -388,12 +388,32 @@ export default function StudentDetail() {
   if (!student) return <div className="p-6 text-gray-400 text-sm">Eleve introuvable.</div>
 
   const isHerrade = student.schools?.name?.includes('Herrade')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  async function deleteStudent() {
+    await supabase.from('students').delete().eq('id', id)
+    navigate('/')
+  }
 
   return (
     <div className="p-4 sm:p-6">
-      <button onClick={() => navigate('/')} className="flex items-center gap-1 text-gray-400 hover:text-gray-600 text-sm mb-4">
-        <ArrowLeft size={15} /> Retour
-      </button>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => navigate('/')} className="flex items-center gap-1 text-gray-400 hover:text-gray-600 text-sm">
+          <ArrowLeft size={15} /> Retour
+        </button>
+        {!confirmDelete ? (
+          <button onClick={() => setConfirmDelete(true)}
+            className="flex items-center gap-1 text-red-400 hover:text-red-600 text-xs">
+            <Trash2 size={13} /> Supprimer
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+            <span className="text-xs text-red-600 font-medium">Confirmer ?</span>
+            <button onClick={deleteStudent} className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded">Oui</button>
+            <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-500 hover:text-gray-700 px-1">Non</button>
+          </div>
+        )}
+      </div>
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-800">{student.last_name} {student.first_name}</h1>
         <p className="text-gray-400 text-sm">{student.schools?.name}{student.class ? ` - ${student.class}` : ''}</p>
