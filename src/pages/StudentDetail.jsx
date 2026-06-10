@@ -7,6 +7,8 @@ const TERMS = ['T1', 'T2', 'T3']
 const TERM_LABELS = { T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3' }
 const inp = 'border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full'
 
+const fmtDate = d => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+
 function Section({ title, children, action }) {
   return (
     <div className="mb-6">
@@ -70,7 +72,7 @@ function SectionPresences({ studentId }) {
 
   async function load() {
     const { data } = await supabase.from('attendance').select('*')
-      .eq('student_id', studentId).order('date', { ascending: false }).limit(20)
+      .eq('student_id', studentId).order('date', { ascending: false }).limit(30)
     setRecords(data ?? [])
   }
 
@@ -117,12 +119,12 @@ function SectionPresences({ studentId }) {
             const s = STATUS[r.status] ?? { label: r.status, color: 'bg-gray-100 text-gray-600' }
             return (
               <div key={r.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm font-medium text-gray-700">{fmtDate(r.date)}</span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>{s.label}</span>
-                  <span className="text-sm text-gray-600">{new Date(r.date).toLocaleDateString('fr-FR')}</span>
                   {r.reason && <span className="text-xs text-gray-400">{r.reason}</span>}
                 </div>
-                <button onClick={() => del(r.id)} className="text-gray-200 hover:text-red-400"><Trash2 size={14} /></button>
+                <button onClick={() => del(r.id)} className="text-gray-200 hover:text-red-400 ml-2"><Trash2 size={14} /></button>
               </div>
             )
           })}
@@ -136,12 +138,12 @@ function SectionNotes({ studentId }) {
   const [grades, setGrades] = useState([])
   const [term, setTerm] = useState('T1')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ subject: '', value: '', coefficient: '1', comment: '' })
+  const [form, setForm] = useState({ subject: '', value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
   const [saving, setSaving] = useState(false)
 
   async function load() {
     const { data } = await supabase.from('grades').select('*')
-      .eq('student_id', studentId).eq('term', TERM_LABELS[term]).order('created_at', { ascending: false })
+      .eq('student_id', studentId).eq('term', TERM_LABELS[term]).order('date', { ascending: false })
     setGrades(data ?? [])
   }
 
@@ -154,9 +156,10 @@ function SectionNotes({ studentId }) {
       student_id: studentId, term: TERM_LABELS[term],
       subject: form.subject, value: parseFloat(form.value),
       coefficient: parseFloat(form.coefficient) || 1,
+      date: form.date || null,
       comment: form.comment || null,
     })
-    setForm({ subject: '', value: '', coefficient: '1', comment: '' })
+    setForm({ subject: '', value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
     setShowForm(false); setSaving(false); load()
   }
 
@@ -169,7 +172,7 @@ function SectionNotes({ studentId }) {
   return (
     <Section title="Notes"
       action={<button onClick={() => setShowForm(v => !v)} className="flex items-center gap-1 text-blue-600 text-xs hover:underline"><Plus size={13} /> Ajouter</button>}>
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-1 mb-3 flex-wrap">
         {TERMS.map(t => (
           <button key={t} onClick={() => setTerm(t)}
             className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${term === t ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-500'}`}>
@@ -187,9 +190,11 @@ function SectionNotes({ studentId }) {
               <input type="number" className={inp} min="0" max="20" step="0.5" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Coefficient</label>
               <input type="number" className={inp} min="0.5" step="0.5" value={form.coefficient} onChange={e => setForm(f => ({ ...f, coefficient: e.target.value }))} /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Commentaire</label>
-              <input className={inp} value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Date</label>
+              <input type="date" className={inp} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
           </div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Commentaire</label>
+            <input className={inp} value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} /></div>
           <div className="flex gap-2">
             <button onClick={add} disabled={saving} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-blue-700 disabled:opacity-50"><Check size={12} /> {saving ? '...' : 'OK'}</button>
             <button onClick={() => setShowForm(false)} className="flex items-center gap-1 border border-gray-200 px-3 py-1.5 rounded-lg text-xs text-gray-500"><X size={12} /> Annuler</button>
@@ -201,14 +206,18 @@ function SectionNotes({ studentId }) {
       ) : (
         <div className="space-y-2">
           {grades.map(g => (
-            <div key={g.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between">
-              <div>
+            <div key={g.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between">
                 <span className="font-medium text-gray-800 text-sm">{g.subject}</span>
-                {g.comment && <span className="ml-2 text-xs text-gray-400">{g.comment}</span>}
+                <div className="flex items-center gap-3">
+                  <span className={`font-bold text-sm ${g.value >= 10 ? 'text-green-600' : 'text-red-500'}`}>{g.value}/20</span>
+                  <button onClick={() => del(g.id)} className="text-gray-200 hover:text-red-400"><Trash2 size={14} /></button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`font-bold text-sm ${g.value >= 10 ? 'text-green-600' : 'text-red-500'}`}>{g.value}/20</span>
-                <button onClick={() => del(g.id)} className="text-gray-200 hover:text-red-400"><Trash2 size={14} /></button>
+              <div className="flex items-center gap-3 mt-1">
+                {g.date && <span className="text-xs text-gray-400">{fmtDate(g.date)}</span>}
+                {g.coefficient !== 1 && <span className="text-xs text-gray-400">coeff. {g.coefficient}</span>}
+                {g.comment && <span className="text-xs text-gray-400 italic">{g.comment}</span>}
               </div>
             </div>
           ))}
@@ -273,7 +282,10 @@ function SectionAppreciations({ studentId }) {
             <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 relative group">
               <button onClick={() => del(c.id)} className="absolute top-3 right-3 text-gray-200 group-hover:text-red-400"><Trash2 size={14} /></button>
               <p className="text-sm text-gray-700 leading-relaxed pr-5">{c.text}</p>
-              {c.author && <p className="text-xs text-gray-400 mt-1">- {c.author}</p>}
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-xs text-gray-400">{fmtDate(c.created_at)}</span>
+                {c.author && <span className="text-xs text-gray-400">- {c.author}</span>}
+              </div>
             </div>
           ))}
         </div>
@@ -330,7 +342,7 @@ function SectionBonPoints({ studentId }) {
       </div>
       {showForm && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3 space-y-2">
-          <p className="text-xs font-medium text-gray-600">{pendingAmount > 0 ? `+${pendingAmount}` : pendingAmount} bon point</p>
+          <p className="text-xs font-medium text-gray-600">{pendingAmount > 0 ? '+' : ''}{pendingAmount} bon point</p>
           <input className={inp} placeholder="Motif (optionnel)" value={reason} onChange={e => setReason(e.target.value)} />
           <div className="flex gap-2">
             <button onClick={add} disabled={saving} className="flex items-center gap-1 bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-amber-600 disabled:opacity-50"><Check size={12} /> {saving ? '...' : 'Valider'}</button>
@@ -344,7 +356,7 @@ function SectionBonPoints({ studentId }) {
             <div className="flex items-center gap-2">
               <span className={`font-bold text-sm ${e.amount > 0 ? 'text-amber-500' : 'text-red-500'}`}>{e.amount > 0 ? '+' : ''}{e.amount}</span>
               {e.reason && <span className="text-xs text-gray-500">{e.reason}</span>}
-              <span className="text-xs text-gray-300">{new Date(e.date).toLocaleDateString('fr-FR')}</span>
+              <span className="text-xs text-gray-300">{fmtDate(e.date)}</span>
             </div>
             <button onClick={() => del(e.id)} className="text-gray-200 group-hover:text-red-400"><Trash2 size={13} /></button>
           </div>

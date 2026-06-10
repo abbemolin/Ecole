@@ -1,9 +1,40 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Plus, Search, ChevronRight, X, Check } from 'lucide-react'
+import { Plus, Search, ChevronRight, ChevronDown, X, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const inp = 'border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full'
+
+function ClassGroup({ label, students, navigate }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-left">
+        <div className="flex items-center gap-2">
+          {open ? <ChevronDown size={15} className="text-gray-500" /> : <ChevronRight size={15} className="text-gray-500" />}
+          <span className="font-semibold text-gray-700 text-sm">{label}</span>
+        </div>
+        <span className="text-xs text-gray-400">{students.length} eleve{students.length > 1 ? 's' : ''}</span>
+      </button>
+      {open && (
+        <div className="mt-1 space-y-1 pl-2">
+          {students.map(s => (
+            <button key={s.id} onClick={() => navigate(`/eleves/${s.id}`)}
+              className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left">
+              <div>
+                <p className="font-semibold text-gray-800 text-sm">{s.last_name} {s.first_name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{s.schools?.name}</p>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Students() {
   const { schoolId, schools } = useOutletContext()
@@ -37,14 +68,27 @@ export default function Students() {
       class: form.class || null, school_id: form.school_id,
     })
     setForm({ first_name: '', last_name: '', class: '', school_id: schoolId || schools[0]?.id || '' })
-    setShowForm(false)
-    setSaving(false)
-    load()
+    setShowForm(false); setSaving(false); load()
   }
 
   const filtered = students.filter(s =>
     `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase())
   )
+
+  // Grouper par classe
+  const groups = filtered.reduce((acc, s) => {
+    const key = s.class || 'Sans classe'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(s)
+    return acc
+  }, {})
+
+  // Trier : classes nommées d'abord (alphabétique), "Sans classe" en dernier
+  const sortedKeys = Object.keys(groups).sort((a, b) => {
+    if (a === 'Sans classe') return 1
+    if (b === 'Sans classe') return -1
+    return a.localeCompare(b, 'fr')
+  })
 
   return (
     <div className="p-4 sm:p-6">
@@ -83,28 +127,21 @@ export default function Students() {
         </div>
       )}
 
-      <div className="relative mb-3">
+      <div className="relative mb-4">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input type="text" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)}
           className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
 
-      <div className="space-y-2">
-        {loading ? (
-          <p className="text-center text-gray-400 py-10 text-sm">Chargement...</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-gray-400 py-10 text-sm">Aucun eleve.</p>
-        ) : filtered.map(s => (
-          <button key={s.id} onClick={() => navigate(`/eleves/${s.id}`)}
-            className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left">
-            <div>
-              <p className="font-semibold text-gray-800 text-sm">{s.last_name} {s.first_name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{s.schools?.name}{s.class ? ` - ${s.class}` : ''}</p>
-            </div>
-            <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
-          </button>
-        ))}
-      </div>
+      {loading ? (
+        <p className="text-center text-gray-400 py-10 text-sm">Chargement...</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-center text-gray-400 py-10 text-sm">Aucun eleve.</p>
+      ) : (
+        sortedKeys.map(key => (
+          <ClassGroup key={key} label={key} students={groups[key]} navigate={navigate} />
+        ))
+      )}
     </div>
   )
 }
