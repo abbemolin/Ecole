@@ -384,11 +384,12 @@ export default function StudentDetail() {
     load()
   }, [id])
 
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
   if (loading) return <div className="p-6 text-gray-400 text-sm">Chargement...</div>
   if (!student) return <div className="p-6 text-gray-400 text-sm">Eleve introuvable.</div>
 
   const isHerrade = student.schools?.name?.includes('Herrade')
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   async function deleteStudent() {
     await supabase.from('students').delete().eq('id', id)
