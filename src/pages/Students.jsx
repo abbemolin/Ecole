@@ -1,87 +1,75 @@
 import { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Plus, Search, ChevronRight } from 'lucide-react'
+import { useOutletContext, useNavigate } from 'react-router-dom'
+import { Plus, Search, ChevronRight, X, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+
+const inp = 'border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full'
 
 export default function Students() {
   const { schoolId, schools } = useOutletContext()
+  const navigate = useNavigate()
   const [students, setStudents] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ first_name: '', last_name: '', class: '', school_id: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    let q = supabase.from('students').select('*, schools(name)').order('last_name')
+    if (schoolId) q = q.eq('school_id', schoolId)
+    const { data } = await q
+    setStudents(data ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [schoolId])
 
   useEffect(() => {
-    async function load() {
-      setLoading(true)
-      let q = supabase
-        .from('students')
-        .select('*, schools(name)')
-        .order('last_name')
-      if (schoolId) q = q.eq('school_id', schoolId)
-      const { data } = await q
-      setStudents(data ?? [])
-      setLoading(false)
-    }
+    if (schools.length) setForm(f => ({ ...f, school_id: schoolId || schools[0].id }))
+  }, [schoolId, schools])
+
+  async function add() {
+    if (!form.first_name || !form.last_name || !form.school_id) return
+    setSaving(true)
+    await supabase.from('students').insert({
+      first_name: form.first_name, last_name: form.last_name,
+      class: form.class || null, school_id: form.school_id,
+    })
+    setForm({ first_name: '', last_name: '', class: '', school_id: schoolId || schools[0]?.id || '' })
+    setShowForm(false)
+    setSaving(false)
     load()
-  }, [schoolId])
+  }
 
   const filtered = students.filter(s =>
     `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Élèves</h1>
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors">
-          <Plus size={16} /> Ajouter un élève
+    <div className="p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold text-gray-800">Élèves</h1>
+        <button onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700">
+          <Plus size={15} /> Ajouter
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Rechercher un élève…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {loading ? (
-          <p className="text-center text-gray-400 py-12 text-sm">Chargement…</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-gray-400 py-12 text-sm">Aucun élève trouvé.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Nom</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Prénom</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Classe</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">École</th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map(s => (
-                <tr key={s.id} className="hover:bg-gray-50 cursor-pointer transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-800">{s.last_name}</td>
-                  <td className="px-6 py-4 text-gray-600">{s.first_name}</td>
-                  <td className="px-6 py-4 text-gray-600">{s.class ?? '—'}</td>
-                  <td className="px-6 py-4 text-gray-600">{s.schools?.name ?? '—'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <ChevronRight size={16} className="text-gray-400 ml-auto" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  )
-}
+      {showForm && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs text-gray-500 mb-1 block">Prénom *</label>
+              <input className={inp} value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Nom *</label>
+              <input className={inp} value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
+          </div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Classe</label>
+            <input className={inp} placeholder="6ème A, CE2…" value={form.class} onChange={e => setForm(f => ({ ...f, class: e.target.value }))} /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">École *</label>
+            <select className={inp} value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}>
+              {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select></div>
+          <div className="flex gap-2">
+            <button onClick={add} disabled={saving ||
