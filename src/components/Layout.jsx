@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Outlet, useSearchParams } from 'react-router-dom'
-import { GraduationCap, Menu, X } from 'lucide-react'
+import { useState } from 'react'
+import { Outlet, useSearchParams, useNavigate } from 'react-router-dom'
+import { GraduationCap, Menu, X, Download } from 'lucide-react'
 
 const SCHOOLS = [
   { id: 'af2d6b50-d5bd-4e03-86f6-804c608ca7c7', name: 'Herrade de Landsberg' },
@@ -9,7 +9,7 @@ const SCHOOLS = [
 
 const VALID_IDS = new Set(SCHOOLS.map(s => s.id))
 
-function Sidebar({ open, onClose, schoolId, setSchool }) {
+function Sidebar({ open, onClose, schoolId, setSchool, navigate }) {
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/30 z-20 lg:hidden" onClick={onClose} />}
@@ -21,7 +21,7 @@ function Sidebar({ open, onClose, schoolId, setSchool }) {
           </div>
           <button onClick={onClose} className="lg:hidden text-gray-400"><X size={18} /></button>
         </div>
-        <div className="px-4 py-4">
+        <div className="px-4 py-4 flex-1">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Ecole</p>
           <button onClick={() => { setSchool(''); onClose() }}
             className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-colors ${!schoolId ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
@@ -34,6 +34,12 @@ function Sidebar({ open, onClose, schoolId, setSchool }) {
             </button>
           ))}
         </div>
+        <div className="px-4 py-4 border-t border-gray-100">
+          <button onClick={() => { navigate('/exports'); onClose() }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <Download size={15} className="text-gray-400" /> Export sacrements
+          </button>
+        </div>
       </aside>
     </>
   )
@@ -42,17 +48,8 @@ function Sidebar({ open, onClose, schoolId, setSchool }) {
 export default function Layout() {
   const [params, setParams] = useSearchParams()
   const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
   const rawSchoolId = params.get('school') ?? ''
-
-  // Purge les anciens IDs invalides (ex: "1", "2") laissés par une version precedente
-  useEffect(() => {
-    if (rawSchoolId && !VALID_IDS.has(rawSchoolId)) {
-      const next = new URLSearchParams(params)
-      next.delete('school')
-      setParams(next, { replace: true })
-    }
-  }, [rawSchoolId])
-
   const schoolId = VALID_IDS.has(rawSchoolId) ? rawSchoolId : ''
 
   function setSchool(id) {
@@ -63,7 +60,7 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar open={open} onClose={() => setOpen(false)} schoolId={schoolId} setSchool={setSchool} />
+      <Sidebar open={open} onClose={() => setOpen(false)} schoolId={schoolId} setSchool={setSchool} navigate={navigate} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200">
           <button onClick={() => setOpen(true)} className="text-gray-500"><Menu size={22} /></button>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, X, Check, Star, Minus } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, X, Check, Star, Minus, Download, Phone, Mail } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const TERMS = ['T1', 'T2', 'T3']
@@ -8,6 +8,13 @@ const TERM_LABELS = { T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3' }
 const inp = 'border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full'
 
 const fmtDate = d => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+
+const SACREMENT_LABELS = { bapteme: 'Bapteme', communion: 'Communion', profession_de_foi: 'Profession de foi' }
+const SACREMENT_STATUS = {
+  demande:        { label: 'Demande',        color: 'bg-yellow-100 text-yellow-700' },
+  en_preparation: { label: 'En preparation', color: 'bg-blue-100 text-blue-700' },
+  recu:           { label: 'Recu',           color: 'bg-green-100 text-green-700' },
+}
 
 function Section({ title, children, action }) {
   return (
@@ -53,6 +60,199 @@ function SectionClasse({ student, schools, onSave }) {
           <Check size={14} /> {saving ? '...' : saved ? 'Enregistre!' : 'Enregistrer'}
         </button>
       </div>
+    </Section>
+  )
+}
+
+function SectionParents({ studentId }) {
+  const [parents, setParents] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ first_name: '', last_name: '', relationship: '', phone: '', email: '', notes: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function load() {
+    const { data } = await supabase.from('parent_contacts').select('*')
+      .eq('student_id', studentId).order('created_at')
+    setParents(data ?? [])
+  }
+
+  useEffect(() => { load() }, [studentId])
+
+  async function add() {
+    if (!form.first_name || !form.last_name) return
+    setSaving(true)
+    await supabase.from('parent_contacts').insert({
+      student_id: studentId,
+      first_name: form.first_name,
+      last_name: form.last_name,
+      relationship: form.relationship || null,
+      phone: form.phone || null,
+      email: form.email || null,
+      notes: form.notes || null,
+    })
+    setForm({ first_name: '', last_name: '', relationship: '', phone: '', email: '', notes: '' })
+    setShowForm(false); setSaving(false); load()
+  }
+
+  async function del(id) { await supabase.from('parent_contacts').delete().eq('id', id); load() }
+
+  return (
+    <Section title="Parents / Contacts"
+      action={<button onClick={() => setShowForm(v => !v)} className="flex items-center gap-1 text-blue-600 text-xs hover:underline"><Plus size={13} /> Ajouter</button>}>
+      {showForm && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="text-xs text-gray-500 mb-1 block">Prenom *</label>
+              <input className={inp} value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Nom *</label>
+              <input className={inp} value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
+          </div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Lien (pere, mere, tuteur...)</label>
+            <input className={inp} placeholder="Mere..." value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="text-xs text-gray-500 mb-1 block">Telephone</label>
+              <input className={inp} type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Email</label>
+              <input className={inp} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
+          </div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Notes</label>
+            <input className={inp} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+          <div className="flex gap-2">
+            <button onClick={add} disabled={saving || !form.first_name || !form.last_name}
+              className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-blue-700 disabled:opacity-50"><Check size={12} /> {saving ? '...' : 'OK'}</button>
+            <button onClick={() => setShowForm(false)}
+              className="flex items-center gap-1 border border-gray-200 px-3 py-1.5 rounded-lg text-xs text-gray-500"><X size={12} /> Annuler</button>
+          </div>
+        </div>
+      )}
+      {parents.length === 0 ? (
+        <p className="text-gray-400 text-sm text-center py-4 bg-white rounded-xl border border-gray-200">Aucun contact enregistre.</p>
+      ) : (
+        <div className="space-y-2">
+          {parents.map(p => (
+            <div key={p.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 group">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-medium text-gray-800 text-sm">{p.last_name} {p.first_name}
+                    {p.relationship && <span className="ml-2 text-xs text-gray-400 font-normal">{p.relationship}</span>}
+                  </p>
+                  <div className="flex flex-wrap gap-3 mt-1">
+                    {p.phone && <a href={`tel:${p.phone}`} className="flex items-center gap-1 text-xs text-blue-600 hover:underline"><Phone size={11} />{p.phone}</a>}
+                    {p.email && <a href={`mailto:${p.email}`} className="flex items-center gap-1 text-xs text-blue-600 hover:underline"><Mail size={11} />{p.email}</a>}
+                  </div>
+                  {p.notes && <p className="text-xs text-gray-400 mt-1 italic">{p.notes}</p>}
+                </div>
+                <button onClick={() => del(p.id)} className="text-gray-200 hover:text-red-400 ml-2 flex-shrink-0"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  )
+}
+
+function SectionSacrements({ studentId }) {
+  const [sacrements, setSacrements] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ type: 'bapteme', status: 'demande', date_planned: '', notes: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function load() {
+    const { data } = await supabase.from('sacrements').select('*')
+      .eq('student_id', studentId).order('created_at')
+    setSacrements(data ?? [])
+  }
+
+  useEffect(() => { load() }, [studentId])
+
+  async function add() {
+    setSaving(true)
+    await supabase.from('sacrements').upsert({
+      student_id: studentId,
+      type: form.type,
+      status: form.status,
+      date_planned: form.date_planned || null,
+      notes: form.notes || null,
+      date_request: new Date().toISOString().slice(0, 10),
+    }, { onConflict: 'student_id,type' })
+    setForm({ type: 'bapteme', status: 'demande', date_planned: '', notes: '' })
+    setShowForm(false); setSaving(false); load()
+  }
+
+  async function updateStatus(id, status) {
+    await supabase.from('sacrements').update({ status }).eq('id', id)
+    load()
+  }
+
+  async function del(id) { await supabase.from('sacrements').delete().eq('id', id); load() }
+
+  const existingTypes = new Set(sacrements.map(s => s.type))
+  const availableTypes = Object.keys(SACREMENT_LABELS).filter(t => !existingTypes.has(t))
+
+  return (
+    <Section title="Sacrements"
+      action={availableTypes.length > 0
+        ? <button onClick={() => { setForm(f => ({ ...f, type: availableTypes[0] })); setShowForm(v => !v) }}
+            className="flex items-center gap-1 text-blue-600 text-xs hover:underline"><Plus size={13} /> Ajouter</button>
+        : null}>
+      {showForm && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="text-xs text-gray-500 mb-1 block">Sacrement</label>
+              <select className={inp} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
+                {availableTypes.map(t => <option key={t} value={t}>{SACREMENT_LABELS[t]}</option>)}
+              </select></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Statut</label>
+              <select className={inp} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                {Object.entries(SACREMENT_STATUS).map(([v, { label }]) => <option key={v} value={v}>{label}</option>)}
+              </select></div>
+          </div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Date prevue</label>
+            <input type="date" className={inp} value={form.date_planned} onChange={e => setForm(f => ({ ...f, date_planned: e.target.value }))} /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Notes</label>
+            <input className={inp} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+          <div className="flex gap-2">
+            <button onClick={add} disabled={saving}
+              className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-blue-700 disabled:opacity-50"><Check size={12} /> {saving ? '...' : 'OK'}</button>
+            <button onClick={() => setShowForm(false)}
+              className="flex items-center gap-1 border border-gray-200 px-3 py-1.5 rounded-lg text-xs text-gray-500"><X size={12} /> Annuler</button>
+          </div>
+        </div>
+      )}
+      {sacrements.length === 0 ? (
+        <p className="text-gray-400 text-sm text-center py-4 bg-white rounded-xl border border-gray-200">Aucun sacrement enregistre.</p>
+      ) : (
+        <div className="space-y-2">
+          {sacrements.map(s => {
+            const st = SACREMENT_STATUS[s.status] ?? { label: s.status, color: 'bg-gray-100 text-gray-600' }
+            return (
+              <div key={s.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-gray-800 text-sm">{SACREMENT_LABELS[s.type] ?? s.type}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.color}`}>{st.label}</span>
+                      {s.date_request && <span className="text-xs text-gray-400">Demande le {fmtDate(s.date_request)}</span>}
+                      {s.date_planned && <span className="text-xs text-gray-400">Prevu le {fmtDate(s.date_planned)}</span>}
+                    </div>
+                    {s.notes && <p className="text-xs text-gray-400 mt-1 italic">{s.notes}</p>}
+                    <div className="flex gap-1 mt-2">
+                      {Object.entries(SACREMENT_STATUS).map(([v, { label }]) => (
+                        <button key={v} onClick={() => updateStatus(s.id, v)}
+                          className={`px-2 py-0.5 rounded text-xs transition-colors ${s.status === v ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={() => del(s.id)} className="text-gray-200 hover:text-red-400 ml-2 flex-shrink-0"><Trash2 size={14} /></button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </Section>
   )
 }
@@ -366,12 +566,124 @@ function SectionBonPoints({ studentId }) {
   )
 }
 
+async function exportFiche(student) {
+  const id = student.id
+  const [
+    { data: attendance },
+    { data: grades },
+    { data: comments },
+    { data: bonPoints },
+    { data: parents },
+    { data: sacrements },
+  ] = await Promise.all([
+    supabase.from('attendance').select('*').eq('student_id', id).order('date', { ascending: false }),
+    supabase.from('grades').select('*').eq('student_id', id).order('date', { ascending: false }),
+    supabase.from('comments').select('*').eq('student_id', id).order('created_at', { ascending: false }),
+    supabase.from('bon_points').select('*').eq('student_id', id).order('date', { ascending: false }),
+    supabase.from('parent_contacts').select('*').eq('student_id', id),
+    supabase.from('sacrements').select('*').eq('student_id', id),
+  ])
+
+  const fmtD = d => d ? new Date(d).toLocaleDateString('fr-FR') : '-'
+  const lines = []
+
+  lines.push(`FICHE ELEVE`)
+  lines.push(`===========`)
+  lines.push(`Nom      : ${student.last_name} ${student.first_name}`)
+  lines.push(`Ecole    : ${student.schools?.name ?? '-'}`)
+  lines.push(`Classe   : ${student.class ?? '-'}`)
+  lines.push(``)
+
+  lines.push(`CONTACTS PARENTS`)
+  lines.push(`----------------`)
+  if (!parents?.length) {
+    lines.push(`Aucun contact.`)
+  } else {
+    for (const p of parents) {
+      lines.push(`${p.last_name} ${p.first_name}${p.relationship ? ` (${p.relationship})` : ''}`)
+      if (p.phone) lines.push(`  Tel : ${p.phone}`)
+      if (p.email) lines.push(`  Email : ${p.email}`)
+      if (p.notes) lines.push(`  Notes : ${p.notes}`)
+    }
+  }
+  lines.push(``)
+
+  lines.push(`SACREMENTS`)
+  lines.push(`----------`)
+  if (!sacrements?.length) {
+    lines.push(`Aucune demande.`)
+  } else {
+    for (const s of sacrements) {
+      const st = SACREMENT_STATUS[s.status]?.label ?? s.status
+      lines.push(`${SACREMENT_LABELS[s.type] ?? s.type} : ${st}`)
+      if (s.date_request) lines.push(`  Demande le : ${fmtD(s.date_request)}`)
+      if (s.date_planned) lines.push(`  Prevu le   : ${fmtD(s.date_planned)}`)
+      if (s.notes) lines.push(`  Notes : ${s.notes}`)
+    }
+  }
+  lines.push(``)
+
+  lines.push(`PRESENCES`)
+  lines.push(`---------`)
+  const statusLabels = { present: 'Present', absent: 'Absent', late: 'Retard', excused: 'Excuse' }
+  if (!attendance?.length) {
+    lines.push(`Aucun enregistrement.`)
+  } else {
+    for (const a of attendance) {
+      lines.push(`${fmtD(a.date)} - ${statusLabels[a.status] ?? a.status}${a.reason ? ` (${a.reason})` : ''}`)
+    }
+  }
+  lines.push(``)
+
+  for (const t of ['Trimestre 1', 'Trimestre 2', 'Trimestre 3']) {
+    const tGrades = grades?.filter(g => g.term === t) ?? []
+    const tComments = comments?.filter(c => c.term === t) ?? []
+    if (!tGrades.length && !tComments.length) continue
+    lines.push(`NOTES - ${t.toUpperCase()}`)
+    lines.push(`---------`)
+    if (tGrades.length) {
+      for (const g of tGrades) {
+        lines.push(`${g.subject} : ${g.value}/20${g.coefficient !== 1 ? ` (coeff ${g.coefficient})` : ''}${g.date ? ` - ${fmtD(g.date)}` : ''}${g.comment ? ` - ${g.comment}` : ''}`)
+      }
+      const avg = (tGrades.reduce((s, g) => s + g.value * g.coefficient, 0) / tGrades.reduce((s, g) => s + g.coefficient, 0)).toFixed(1)
+      lines.push(`Moyenne : ${avg}/20`)
+    }
+    if (tComments.length) {
+      lines.push(`Appreciations :`)
+      for (const c of tComments) {
+        lines.push(`  - ${c.text}${c.author ? ` (${c.author})` : ''} - ${fmtD(c.created_at)}`)
+      }
+    }
+    lines.push(``)
+  }
+
+  if (bonPoints?.length) {
+    const total = bonPoints.reduce((s, e) => s + e.amount, 0)
+    lines.push(`BON POINTS`)
+    lines.push(`----------`)
+    lines.push(`Total : ${total}`)
+    for (const e of bonPoints) {
+      lines.push(`${e.amount > 0 ? '+' : ''}${e.amount} - ${fmtD(e.date)}${e.reason ? ` - ${e.reason}` : ''}`)
+    }
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `fiche_${student.last_name}_${student.first_name}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function StudentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [student, setStudent] = useState(null)
   const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -384,8 +696,6 @@ export default function StudentDetail() {
     load()
   }, [id])
 
-  const [confirmDelete, setConfirmDelete] = useState(false)
-
   if (loading) return <div className="p-6 text-gray-400 text-sm">Chargement...</div>
   if (!student) return <div className="p-6 text-gray-400 text-sm">Eleve introuvable.</div>
 
@@ -396,30 +706,44 @@ export default function StudentDetail() {
     navigate('/')
   }
 
+  async function handleExport() {
+    setExporting(true)
+    await exportFiche(student)
+    setExporting(false)
+  }
+
   return (
     <div className="p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => navigate('/')} className="flex items-center gap-1 text-gray-400 hover:text-gray-600 text-sm">
           <ArrowLeft size={15} /> Retour
         </button>
-        {!confirmDelete ? (
-          <button onClick={() => setConfirmDelete(true)}
-            className="flex items-center gap-1 text-red-400 hover:text-red-600 text-xs">
-            <Trash2 size={13} /> Supprimer
+        <div className="flex items-center gap-2">
+          <button onClick={handleExport} disabled={exporting}
+            className="flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs disabled:opacity-50">
+            <Download size={13} /> {exporting ? '...' : 'Exporter'}
           </button>
-        ) : (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
-            <span className="text-xs text-red-600 font-medium">Confirmer ?</span>
-            <button onClick={deleteStudent} className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded">Oui</button>
-            <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-500 hover:text-gray-700 px-1">Non</button>
-          </div>
-        )}
+          {!confirmDelete ? (
+            <button onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1 text-red-400 hover:text-red-600 text-xs">
+              <Trash2 size={13} /> Supprimer
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+              <span className="text-xs text-red-600 font-medium">Confirmer ?</span>
+              <button onClick={deleteStudent} className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded">Oui</button>
+              <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-500 hover:text-gray-700 px-1">Non</button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-800">{student.last_name} {student.first_name}</h1>
         <p className="text-gray-400 text-sm">{student.schools?.name}{student.class ? ` - ${student.class}` : ''}</p>
       </div>
       <SectionClasse student={student} schools={schools} onSave={u => setStudent(s => ({ ...s, ...u }))} />
+      <SectionParents studentId={id} />
+      <SectionSacrements studentId={id} />
       <SectionPresences studentId={id} />
       <SectionNotes studentId={id} />
       <SectionAppreciations studentId={id} />
