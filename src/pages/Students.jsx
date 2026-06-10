@@ -25,7 +25,6 @@ export default function Students() {
   }
 
   useEffect(() => { load() }, [schoolId])
-
   useEffect(() => {
     if (schools.length) setForm(f => ({ ...f, school_id: schoolId || schools[0].id }))
   }, [schoolId, schools])
@@ -50,7 +49,7 @@ export default function Students() {
   return (
     <div className="p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-gray-800">Élèves</h1>
+        <h1 className="text-xl font-bold text-gray-800">Eleves</h1>
         <button onClick={() => setShowForm(v => !v)}
           className="flex items-center gap-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700">
           <Plus size={15} /> Ajouter
@@ -60,16 +59,52 @@ export default function Students() {
       {showForm && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-gray-500 mb-1 block">Prénom *</label>
+            <div><label className="text-xs text-gray-500 mb-1 block">Prenom *</label>
               <input className={inp} value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Nom *</label>
               <input className={inp} value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
           </div>
           <div><label className="text-xs text-gray-500 mb-1 block">Classe</label>
-            <input className={inp} placeholder="6ème A, CE2…" value={form.class} onChange={e => setForm(f => ({ ...f, class: e.target.value }))} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">École *</label>
+            <input className={inp} placeholder="6eme A, CE2..." value={form.class} onChange={e => setForm(f => ({ ...f, class: e.target.value }))} /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Ecole *</label>
             <select className={inp} value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}>
               {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select></div>
           <div className="flex gap-2">
-            <button onClick={add} disabled={saving ||
+            <button onClick={add} disabled={saving || !form.first_name || !form.last_name}
+              className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+              <Check size={14} /> {saving ? '...' : 'Ajouter'}
+            </button>
+            <button onClick={() => setShowForm(false)}
+              className="flex items-center gap-1 border border-gray-200 px-4 py-2 rounded-lg text-sm text-gray-600">
+              <X size={14} /> Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="relative mb-3">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input type="text" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <div className="space-y-2">
+        {loading ? (
+          <p className="text-center text-gray-400 py-10 text-sm">Chargement...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-center text-gray-400 py-10 text-sm">Aucun eleve.</p>
+        ) : filtered.map(s => (
+          <button key={s.id} onClick={() => navigate(`/eleves/${s.id}`)}
+            className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left">
+            <div>
+              <p className="font-semibold text-gray-800 text-sm">{s.last_name} {s.first_name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{s.schools?.name}{s.class ? ` - ${s.class}` : ''}</p>
+            </div>
+            <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
