@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useSearchParams } from 'react-router-dom'
 import { GraduationCap, Menu, X } from 'lucide-react'
 
@@ -6,6 +6,8 @@ const SCHOOLS = [
   { id: 'af2d6b50-d5bd-4e03-86f6-804c608ca7c7', name: 'Herrade de Landsberg' },
   { id: 'e0064bce-2d0f-447c-87e7-e1ee3d3d32dd', name: 'Saints Louis et Zelie Martin' },
 ]
+
+const VALID_IDS = new Set(SCHOOLS.map(s => s.id))
 
 function Sidebar({ open, onClose, schoolId, setSchool }) {
   return (
@@ -40,7 +42,18 @@ function Sidebar({ open, onClose, schoolId, setSchool }) {
 export default function Layout() {
   const [params, setParams] = useSearchParams()
   const [open, setOpen] = useState(false)
-  const schoolId = params.get('school') ?? ''
+  const rawSchoolId = params.get('school') ?? ''
+
+  // Purge les anciens IDs invalides (ex: "1", "2") laissés par une version precedente
+  useEffect(() => {
+    if (rawSchoolId && !VALID_IDS.has(rawSchoolId)) {
+      const next = new URLSearchParams(params)
+      next.delete('school')
+      setParams(next, { replace: true })
+    }
+  }, [rawSchoolId])
+
+  const schoolId = VALID_IDS.has(rawSchoolId) ? rawSchoolId : ''
 
   function setSchool(id) {
     const next = new URLSearchParams(params)
