@@ -3,8 +3,8 @@ import { Outlet, useSearchParams } from 'react-router-dom'
 import { GraduationCap, Menu, X } from 'lucide-react'
 
 const SCHOOLS = [
-  { id: '1', name: 'Herrade de Landsberg' },
-  { id: '2', name: 'Saints Louis et Zelie Martin' },
+  { id: 'af2d6b50-d5bd-4e03-86f6-804c608ca7c7', name: 'Herrade de Landsberg' },
+  { id: 'e0064bce-2d0f-447c-87e7-e1ee3d3d32dd', name: 'Saints Louis et Zelie Martin' },
 ]
 
 function Sidebar({ open, onClose, schoolId, setSchool }) {
