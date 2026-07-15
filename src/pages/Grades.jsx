@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const TERMS = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3']
@@ -30,62 +30,59 @@ export default function Grades() {
   }, [schoolId, term])
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Notes</h1>
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors">
-          <Plus size={16} /> Ajouter une note
-        </button>
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-[#1a1814] tracking-tight">Notes</h1>
+        <p className="text-sm text-[#8c8070] mt-0.5">{grades.length} note{grades.length > 1 ? 's' : ''} enregistrée{grades.length > 1 ? 's' : ''}</p>
       </div>
 
       {/* Trimestre tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-1.5 mb-5 bg-white border border-black/5 rounded-xl p-1 w-fit shadow-sm">
         {TERMS.map(t => (
-          <button
-            key={t}
-            onClick={() => setTerm(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
-              ${term === t ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-          >
+          <button key={t} onClick={() => setTerm(t)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              term === t ? 'bg-[#192848] text-white shadow-sm' : 'text-[#8c8070] hover:text-[#1a1814]'
+            }`}>
             {t}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
         {loading ? (
-          <p className="text-center text-gray-400 py-12 text-sm">Chargement…</p>
+          <div className="py-16 text-center text-[#c8c0b0] text-sm">Chargement…</div>
         ) : grades.length === 0 ? (
-          <p className="text-center text-gray-400 py-12 text-sm">Aucune note pour ce trimestre.</p>
+          <div className="py-16 text-center">
+            <BookOpen size={28} className="text-[#d8d3c8] mx-auto mb-3" />
+            <p className="text-[#8c8070] text-sm">Aucune note pour ce trimestre.</p>
+          </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Élève</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Matière</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Note</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Coeff.</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Date</th>
-                <th className="text-left px-6 py-3 text-gray-500 font-medium">Commentaire</th>
+            <thead>
+              <tr className="border-b border-[#f0ece4]">
+                <th className="text-left px-6 py-3 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wider">Élève</th>
+                <th className="text-left px-6 py-3 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wider">Matière</th>
+                <th className="text-left px-6 py-3 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wider">Note</th>
+                <th className="text-left px-6 py-3 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wider">Coeff.</th>
+                <th className="text-left px-6 py-3 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wider">Date</th>
+                <th className="text-left px-6 py-3 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wider">Commentaire</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[#f8f6f2]">
               {grades.map(g => (
-                <tr key={g.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-800">
+                <tr key={g.id} className="hover:bg-[#faf9f6] transition-colors">
+                  <td className="px-6 py-3.5 font-medium text-[#1a1814]">
                     {g.students?.last_name} {g.students?.first_name}
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{g.subject}</td>
-                  <td className="px-6 py-4">
-                    <span className={`font-bold ${g.value >= 10 ? 'text-green-600' : 'text-red-500'}`}>
-                      {g.value}/20
-                    </span>
+                  <td className="px-6 py-3.5 text-[#6b5f50]">{g.subject}</td>
+                  <td className="px-6 py-3.5">
+                    <span className={`font-bold ${g.value >= 10 ? 'text-emerald-600' : 'text-red-500'}`}>{g.value}/20</span>
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{g.coefficient}</td>
-                  <td className="px-6 py-4 text-gray-600">
+                  <td className="px-6 py-3.5 text-[#9a9080]">{g.coefficient}</td>
+                  <td className="px-6 py-3.5 text-[#9a9080]">
                     {g.date ? new Date(g.date).toLocaleDateString('fr-FR') : '—'}
                   </td>
-                  <td className="px-6 py-4 text-gray-500 italic">{g.comment ?? ''}</td>
+                  <td className="px-6 py-3.5 text-[#9a9080] italic">{g.comment ?? ''}</td>
                 </tr>
               ))}
             </tbody>
