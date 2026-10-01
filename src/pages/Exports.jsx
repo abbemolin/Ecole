@@ -55,7 +55,7 @@ async function exportNotesGlobal(students) {
     supabase.from('comments').select('*, students(first_name,last_name,class,schools(name))').in('student_id', ids).order('last_name', { referencedTable: 'students' }),
   ])
 
-  const notesH = ['Paroisse', 'Nom', 'Prénom', 'Classe', 'Trimestre', 'Matière', 'Note /20', 'Coefficient', 'Date', 'Commentaire']
+  const notesH = ['Établissement', 'Nom', 'Prénom', 'Classe', 'Trimestre', 'Matière', 'Note /20', 'Coefficient', 'Date', 'Commentaire']
   const notesR = (grades ?? []).map(g => [
     g.students?.schools?.name ?? '', g.students?.last_name ?? '', g.students?.first_name ?? '',
     g.students?.class ?? '', g.term ?? '', g.subject ?? '',
@@ -63,7 +63,7 @@ async function exportNotesGlobal(students) {
     g.date ? new Date(g.date).toLocaleDateString('fr-FR') : '', g.comment ?? '',
   ])
 
-  const apprecH = ['Paroisse', 'Nom', 'Prénom', 'Classe', 'Trimestre', 'Appréciation', 'Auteur']
+  const apprecH = ['Établissement', 'Nom', 'Prénom', 'Classe', 'Trimestre', 'Appréciation', 'Auteur']
   const apprecR = (comments ?? []).map(c => [
     c.students?.schools?.name ?? '', c.students?.last_name ?? '', c.students?.first_name ?? '',
     c.students?.class ?? '', c.term ?? '', c.text ?? '', c.author ?? '',
@@ -88,7 +88,7 @@ async function exportSacrements(students) {
     .in('student_id', ids)
     .order('last_name', { referencedTable: 'students' })
 
-  const headers = ['Paroisse', 'Nom', 'Prénom', 'Classe', 'Sacrement', 'Statut', 'Date demande', 'Date prévue', 'Notes']
+  const headers = ['Établissement', 'Nom', 'Prénom', 'Classe', 'Sacrement', 'Statut', 'Date demande', 'Date prévue', 'Notes']
   const rows = (data ?? []).map(r => [
     r.students?.schools?.name ?? '', r.students?.last_name ?? '', r.students?.first_name ?? '',
     r.students?.class ?? '', SAC_LABELS[r.type] ?? r.type, SAC_STATUS[r.status] ?? r.status,

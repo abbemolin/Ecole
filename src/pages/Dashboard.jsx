@@ -20,7 +20,7 @@ function StatCard({ icon: Icon, label, value, color }) {
 export default function Dashboard() {
   const { schoolId, schools } = useOutletContext()
   const [stats, setStats] = useState({})
-  const schoolName = schools.find(s => s.id === schoolId)?.name ?? 'toutes les paroisses'
+  const schoolName = schools.find(s => s.id === schoolId)?.name ?? 'tous les établissements'
 
   useEffect(() => {
     async function load() {

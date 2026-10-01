@@ -129,7 +129,7 @@ export default function Students() {
               <input className={inp} placeholder="CE2, 6ème…" value={form.class} onChange={e => setForm(f => ({ ...f, class: e.target.value }))} />
             </div>
             <div>
-              <label className="text-xs font-medium text-[#6b5f50] mb-1.5 block">Paroisse *</label>
+              <label className="text-xs font-medium text-[#6b5f50] mb-1.5 block">Établissement *</label>
               <select className={inp} value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}>
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>

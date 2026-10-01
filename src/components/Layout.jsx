@@ -65,7 +65,7 @@ function Sidebar({ open, onClose, schoolId, setSchool, navigate, location, schoo
 
         {/* Sélecteur école */}
         <div className="px-3 mb-1">
-          <p className="text-white/25 text-[10px] uppercase tracking-widest px-3 mb-1.5">Paroisse</p>
+          <p className="text-white/25 text-[10px] uppercase tracking-widest px-3 mb-1.5">Établissement</p>
           <div className="space-y-0.5">
             <SchoolPill school={null} active={!schoolId} onClick={() => { setSchool(''); onClose() }} />
             {schools.map(s => (
@@ -131,7 +131,7 @@ export default function Layout() {
           </button>
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[#8c8070] text-xs hidden lg:block">
-              {currentSchool ? currentSchool.name : 'Toutes les paroisses'}
+              {currentSchool ? currentSchool.name : 'Tous les établissements'}
             </span>
             {currentNav && <>
               <ChevronRight size={11} className="text-[#c8c0b0] hidden lg:block flex-shrink-0" />
