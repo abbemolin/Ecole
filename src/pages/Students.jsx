@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Plus, Search, ChevronRight, ChevronDown, X, Check, Users } from 'lucide-react'
+import { Plus, Search, ChevronRight, ChevronDown, X, Check, Users, BookOpen } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const inp = 'border border-black/8 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#192848]/20 focus:border-[#192848] w-full bg-white transition-all'
 
-function ClassGroup({ label, students, navigate }) {
+function getCurrentTrimestre() {
+  const m = new Date().getMonth() + 1 // 1-12
+  if (m >= 9) return 'Trimestre 1'
+  if (m <= 3) return 'Trimestre 2'
+  return 'Trimestre 3'
+}
+
+function ClassGroup({ label, students, navigate, notedIds, trimestre }) {
   const [open, setOpen] = useState(true)
   return (
     <div className="mb-2">
@@ -21,21 +28,30 @@ function ClassGroup({ label, students, navigate }) {
       </button>
       {open && (
         <div className="space-y-1">
-          {students.map(s => (
-            <button key={s.id} onClick={() => navigate(`/eleves/${s.id}`)}
-              className="w-full flex items-center justify-between bg-white border border-black/5 rounded-xl px-4 py-3 hover:border-[#192848]/20 hover:shadow-sm transition-all text-left group">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#192848]/8 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#192848] font-semibold text-xs">{s.first_name?.[0]}{s.last_name?.[0]}</span>
+          {students.map(s => {
+            const hasNote = notedIds.has(s.id)
+            return (
+              <button key={s.id} onClick={() => navigate(`/eleves/${s.id}`)}
+                className="w-full flex items-center justify-between bg-white border border-black/5 rounded-xl px-4 py-3 hover:border-[#192848]/20 hover:shadow-sm transition-all text-left group">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${hasNote ? 'bg-emerald-50' : 'bg-[#192848]/8'}`}>
+                    <span className={`font-semibold text-xs ${hasNote ? 'text-emerald-600' : 'text-[#192848]'}`}>{s.first_name?.[0]}{s.last_name?.[0]}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#1a1814] text-sm">{s.last_name} {s.first_name}</p>
+                    {s.schools?.name && <p className="text-[10px] text-[#9a9080] mt-0.5">{s.schools.name}</p>}
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-[#1a1814] text-sm">{s.last_name} {s.first_name}</p>
-                  {s.schools?.name && <p className="text-[10px] text-[#9a9080] mt-0.5">{s.schools.name}</p>}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {hasNote
+                    ? <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200"><BookOpen size={10} /> {trimestre}</span>
+                    : <span className="text-[10px] text-[#c8c0b0] bg-[#f8f6f2] px-2 py-0.5 rounded-full border border-black/5">Pas de note</span>
+                  }
+                  <ChevronRight size={14} className="text-[#d8d3c8] group-hover:text-[#192848] transition-colors" />
                 </div>
-              </div>
-              <ChevronRight size={14} className="text-[#d8d3c8] group-hover:text-[#192848] transition-colors flex-shrink-0" />
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -46,11 +62,13 @@ export default function Students() {
   const { schoolId, schools } = useOutletContext()
   const navigate = useNavigate()
   const [students, setStudents] = useState([])
+  const [notedIds, setNotedIds] = useState(new Set())
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ first_name: '', last_name: '', class: '', school_id: '' })
   const [saving, setSaving] = useState(false)
+  const trimestre = getCurrentTrimestre()
 
   async function load() {
     setLoading(true)
@@ -58,6 +76,17 @@ export default function Students() {
     if (schoolId) q = q.eq('school_id', schoolId)
     const { data } = await q
     setStudents(data ?? [])
+
+    // Charger les élèves qui ont au moins une note ce trimestre
+    const ids = (data ?? []).map(s => s.id)
+    if (ids.length) {
+      const { data: grades } = await supabase
+        .from('grades').select('student_id')
+        .eq('term', trimestre).in('student_id', ids)
+      setNotedIds(new Set((grades ?? []).map(g => g.student_id)))
+    } else {
+      setNotedIds(new Set())
+    }
     setLoading(false)
   }
 
@@ -158,7 +187,20 @@ export default function Students() {
           <p className="text-[#8c8070] text-sm">Aucun élève trouvé.</p>
         </div>
       ) : (
-        sortedKeys.map(key => <ClassGroup key={key} label={key} students={groups[key]} navigate={navigate} />)
+        <>
+          <div className="flex items-center gap-4 mb-4 px-1">
+            <div className="flex items-center gap-1.5 text-xs text-[#8c8070]">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              Note enregistrée ({notedIds.size})
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[#8c8070]">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#d8d3c8]" />
+              Pas encore de note ({students.length - notedIds.size})
+            </div>
+            <span className="text-xs text-[#c9a53a] font-medium ml-auto">{trimestre}</span>
+          </div>
+          {sortedKeys.map(key => <ClassGroup key={key} label={key} students={groups[key]} navigate={navigate} notedIds={notedIds} trimestre={trimestre} />)}
+        </>
       )}
     </div>
   )
