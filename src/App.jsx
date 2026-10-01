@@ -4,7 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
 import StudentDetail from './pages/StudentDetail'
 import Attendance from './pages/Attendance'
-import ExportSacrements from './pages/ExportSacrements'
+import Exports from './pages/Exports'
 
 export default function App() {
   return (
@@ -15,7 +15,7 @@ export default function App() {
           <Route path="eleves" element={<Students />} />
           <Route path="eleves/:id" element={<StudentDetail />} />
           <Route path="presences" element={<Attendance />} />
-          <Route path="exports" element={<ExportSacrements />} />
+          <Route path="exports" element={<Exports />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
