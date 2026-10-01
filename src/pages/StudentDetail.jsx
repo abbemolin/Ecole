@@ -320,7 +320,7 @@ function TabNotes({ studentId }) {
   const [grades, setGrades] = useState([])
   const [term, setTerm] = useState('T1')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ subject: '', value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
+  const [form, setForm] = useState({ value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
   const [saving, setSaving] = useState(false)
   async function load() {
     const { data } = await supabase.from('grades').select('*').eq('student_id', studentId).eq('term', TERM_LABELS[term]).order('date', { ascending: false })
@@ -328,10 +328,10 @@ function TabNotes({ studentId }) {
   }
   useEffect(() => { load() }, [studentId, term])
   async function add() {
-    if (!form.subject || !form.value) return
+    if (!form.value) return
     setSaving(true)
-    await supabase.from('grades').insert({ student_id: studentId, term: TERM_LABELS[term], subject: form.subject, value: parseFloat(form.value), coefficient: parseFloat(form.coefficient) || 1, date: form.date || null, comment: form.comment || null })
-    setForm({ subject: '', value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
+    await supabase.from('grades').insert({ student_id: studentId, term: TERM_LABELS[term], subject: 'Catéchisme', value: parseFloat(form.value), coefficient: parseFloat(form.coefficient) || 1, date: form.date || null, comment: form.comment || null })
+    setForm({ value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
     setShowForm(false); setSaving(false); load()
   }
   async function del(id) { await supabase.from('grades').delete().eq('id', id); load() }
@@ -351,13 +351,12 @@ function TabNotes({ studentId }) {
       {showForm && (
         <Card>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="text-xs text-[#8c8070] mb-1 block">Matière</label><input className={inp} placeholder="Maths…" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} /></div>
-            <div><label className="text-xs text-[#8c8070] mb-1 block">Note /20</label><input type="number" className={inp} min="0" max="20" step="0.5" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} /></div>
+            <div><label className="text-xs text-[#8c8070] mb-1 block">Note /20</label><input type="number" className={inp} min="0" max="20" step="0.5" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} autoFocus /></div>
             <div><label className="text-xs text-[#8c8070] mb-1 block">Coefficient</label><input type="number" className={inp} min="0.5" step="0.5" value={form.coefficient} onChange={e => setForm(f => ({ ...f, coefficient: e.target.value }))} /></div>
             <div><label className="text-xs text-[#8c8070] mb-1 block">Date</label><input type="date" className={inp} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
           </div>
           <div className="mb-3"><label className="text-xs text-[#8c8070] mb-1 block">Commentaire</label><input className={inp} value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} /></div>
-          <FormActions onSave={add} onCancel={() => setShowForm(false)} saving={saving} disabled={!form.subject || !form.value} />
+          <FormActions onSave={add} onCancel={() => setShowForm(false)} saving={saving} disabled={!form.value} />
         </Card>
       )}
       {grades.length === 0 ? <Card><EmptyState text="Aucune note pour ce trimestre." /></Card> : (
@@ -366,7 +365,7 @@ function TabNotes({ studentId }) {
             {grades.map(g => (
               <div key={g.id} className="flex items-center justify-between py-2.5 group">
                 <div>
-                  <p className="font-medium text-[#1a1814] text-sm">{g.subject}</p>
+                  <p className="font-medium text-[#1a1814] text-sm">Catéchisme</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {g.date && <span className="text-xs text-[#8c8070]">{fmtDate(g.date)}</span>}
                     {g.coefficient !== 1 && <span className="text-xs text-[#8c8070]">coeff. {g.coefficient}</span>}
