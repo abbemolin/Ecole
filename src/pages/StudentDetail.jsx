@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, X, Check, Star, Minus, Download, Phone, Mail } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, X, Check, Star, Minus, Download, Phone, Mail, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const TERMS = ['T1', 'T2', 'T3']
@@ -321,12 +321,15 @@ function TabNotes({ studentId }) {
   const [term, setTerm] = useState('T1')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
+  const [editing, setEditing] = useState(null) // { id, value, coefficient, date, comment }
   const [saving, setSaving] = useState(false)
+
   async function load() {
     const { data } = await supabase.from('grades').select('*').eq('student_id', studentId).eq('term', TERM_LABELS[term]).order('date', { ascending: false })
     setGrades(data ?? [])
   }
   useEffect(() => { load() }, [studentId, term])
+
   async function add() {
     if (!form.value) return
     setSaving(true)
@@ -334,6 +337,14 @@ function TabNotes({ studentId }) {
     setForm({ value: '', coefficient: '1', date: new Date().toISOString().slice(0, 10), comment: '' })
     setShowForm(false); setSaving(false); load()
   }
+
+  async function save() {
+    if (!editing?.value) return
+    setSaving(true)
+    await supabase.from('grades').update({ value: parseFloat(editing.value), coefficient: parseFloat(editing.coefficient) || 1, date: editing.date || null, comment: editing.comment || null }).eq('id', editing.id)
+    setEditing(null); setSaving(false); load()
+  }
+
   async function del(id) { await supabase.from('grades').delete().eq('id', id); load() }
   const avg = grades.length ? (grades.reduce((s, g) => s + g.value * g.coefficient, 0) / grades.reduce((s, g) => s + g.coefficient, 0)).toFixed(1) : null
 
@@ -341,7 +352,7 @@ function TabNotes({ studentId }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex gap-1">
-          {TERMS.map(t => <Tab key={t} label={t} active={term === t} onClick={() => setTerm(t)} />)}
+          {TERMS.map(t => <Tab key={t} label={t} active={term === t} onClick={() => { setTerm(t); setEditing(null) }} />)}
         </div>
         {avg && <span className="text-sm font-bold text-[#1e3058] bg-[#e8edf5] px-3 py-1.5 rounded-xl">Moy. {avg}/20</span>}
       </div>
@@ -362,7 +373,17 @@ function TabNotes({ studentId }) {
       {grades.length === 0 ? <Card><EmptyState text="Aucune note pour ce trimestre." /></Card> : (
         <Card>
           <div className="divide-y divide-[#f8f7f4]">
-            {grades.map(g => (
+            {grades.map(g => editing?.id === g.id ? (
+              <div key={g.id} className="py-3 bg-[#f8f7f4] rounded-xl px-3 my-1">
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div><label className="text-xs text-[#8c8070] mb-1 block">Note /20</label><input type="number" className={inp} min="0" max="20" step="0.5" value={editing.value} onChange={e => setEditing(v => ({ ...v, value: e.target.value }))} autoFocus /></div>
+                  <div><label className="text-xs text-[#8c8070] mb-1 block">Coefficient</label><input type="number" className={inp} min="0.5" step="0.5" value={editing.coefficient} onChange={e => setEditing(v => ({ ...v, coefficient: e.target.value }))} /></div>
+                  <div><label className="text-xs text-[#8c8070] mb-1 block">Date</label><input type="date" className={inp} value={editing.date ?? ''} onChange={e => setEditing(v => ({ ...v, date: e.target.value }))} /></div>
+                  <div><label className="text-xs text-[#8c8070] mb-1 block">Commentaire</label><input className={inp} value={editing.comment ?? ''} onChange={e => setEditing(v => ({ ...v, comment: e.target.value }))} /></div>
+                </div>
+                <FormActions onSave={save} onCancel={() => setEditing(null)} saving={saving} disabled={!editing.value} />
+              </div>
+            ) : (
               <div key={g.id} className="flex items-center justify-between py-2.5 group">
                 <div>
                   <p className="font-medium text-[#1a1814] text-sm">Catéchisme</p>
@@ -372,8 +393,10 @@ function TabNotes({ studentId }) {
                     {g.comment && <span className="text-xs text-[#8c8070] italic">{g.comment}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className={`font-bold text-sm ${g.value >= 10 ? 'text-emerald-600' : 'text-red-500'}`}>{g.value}/20</span>
+                  <button onClick={() => setEditing({ id: g.id, value: String(g.value), coefficient: String(g.coefficient), date: g.date ?? '', comment: g.comment ?? '' })}
+                    className="text-[#d8d3c8] hover:text-[#192848] transition-colors opacity-0 group-hover:opacity-100"><Pencil size={13} /></button>
                   <button onClick={() => del(g.id)} className="text-[#d8d3c8] hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={13} /></button>
                 </div>
               </div>
@@ -392,24 +415,35 @@ function TabAppreciations({ studentId }) {
   const [term, setTerm] = useState('T1')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ text: '', author: '' })
+  const [editing, setEditing] = useState(null) // { id, text, author }
   const [saving, setSaving] = useState(false)
+
   async function load() {
     const { data } = await supabase.from('comments').select('*').eq('student_id', studentId).eq('term', TERM_LABELS[term]).order('created_at', { ascending: false })
     setComments(data ?? [])
   }
   useEffect(() => { load() }, [studentId, term])
+
   async function add() {
     if (!form.text) return
     setSaving(true)
     await supabase.from('comments').insert({ student_id: studentId, term: TERM_LABELS[term], text: form.text, author: form.author || null })
     setForm({ text: '', author: '' }); setShowForm(false); setSaving(false); load()
   }
+
+  async function save() {
+    if (!editing?.text) return
+    setSaving(true)
+    await supabase.from('comments').update({ text: editing.text, author: editing.author || null }).eq('id', editing.id)
+    setEditing(null); setSaving(false); load()
+  }
+
   async function del(id) { await supabase.from('comments').delete().eq('id', id); load() }
 
   return (
     <div className="space-y-3">
       <div className="flex gap-1">
-        {TERMS.map(t => <Tab key={t} label={t} active={term === t} onClick={() => setTerm(t)} />)}
+        {TERMS.map(t => <Tab key={t} label={t} active={term === t} onClick={() => { setTerm(t); setEditing(null) }} />)}
       </div>
       <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-2 text-[#1e3058] text-xs font-medium hover:underline">
         <Plus size={13} /> Ajouter une appréciation
@@ -425,11 +459,23 @@ function TabAppreciations({ studentId }) {
       )}
       {comments.length === 0 ? <Card><EmptyState text="Aucune appréciation pour ce trimestre." /></Card> : (
         <div className="space-y-2">
-          {comments.map(c => (
+          {comments.map(c => editing?.id === c.id ? (
+            <Card key={c.id}>
+              <div className="mb-3"><label className="text-xs text-[#8c8070] mb-1 block">Appréciation</label>
+                <textarea rows={3} className={inp} value={editing.text} onChange={e => setEditing(v => ({ ...v, text: e.target.value }))} autoFocus /></div>
+              <div className="mb-3"><label className="text-xs text-[#8c8070] mb-1 block">Auteur</label>
+                <input className={inp} value={editing.author ?? ''} onChange={e => setEditing(v => ({ ...v, author: e.target.value }))} /></div>
+              <FormActions onSave={save} onCancel={() => setEditing(null)} saving={saving} disabled={!editing.text} />
+            </Card>
+          ) : (
             <Card key={c.id}>
               <div className="flex items-start justify-between">
                 <p className="text-sm text-[#1a1814] leading-relaxed flex-1 pr-4">{c.text}</p>
-                <button onClick={() => del(c.id)} className="text-[#d8d3c8] hover:text-red-400 transition-colors flex-shrink-0"><Trash2 size={13} /></button>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => setEditing({ id: c.id, text: c.text, author: c.author ?? '' })}
+                    className="text-[#d8d3c8] hover:text-[#192848] transition-colors"><Pencil size={13} /></button>
+                  <button onClick={() => del(c.id)} className="text-[#d8d3c8] hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
+                </div>
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-xs text-[#8c8070]">{fmtDate(c.created_at)}</span>
