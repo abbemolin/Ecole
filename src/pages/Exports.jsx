@@ -24,11 +24,17 @@ const GOLD = () => ({
   alignment: { horizontal: 'center', vertical: 'center' },
   border: { bottom: { style: 'thin', color: { rgb: '192848' } } },
 })
+const MOY = () => ({
+  font: { bold: true, color: { rgb: '192848' }, sz: 10 },
+  fill: { fgColor: { rgb: 'EAF0FA' } },
+  alignment: { horizontal: 'center', vertical: 'center' },
+  border: { top: { style: 'thin', color: { rgb: '192848' } }, bottom: { style: 'thin', color: { rgb: '192848' } } },
+})
 
-function makeSheet(headers, rows, colWidths, goldHeader = false) {
+function makeSheet(headers, rows, colWidths, goldHeader = false, moyenneRows = new Set()) {
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
   ws['!cols'] = colWidths.map(w => ({ wch: w }))
-  ws['!rows'] = [{ hpt: 24 }, ...rows.map(() => ({ hpt: 18 }))]
+  ws['!rows'] = [{ hpt: 24 }, ...rows.map((_, ri) => ({ hpt: moyenneRows.has(ri) ? 20 : 18 }))]
   headers.forEach((_, ci) => {
     const addr = XLSX.utils.encode_cell({ r: 0, c: ci })
     if (ws[addr]) ws[addr].s = goldHeader ? GOLD() : H()
@@ -36,10 +42,19 @@ function makeSheet(headers, rows, colWidths, goldHeader = false) {
   rows.forEach((_, ri) => {
     headers.forEach((_, ci) => {
       const addr = XLSX.utils.encode_cell({ r: ri + 1, c: ci })
-      if (ws[addr]) ws[addr].s = C(ri % 2 === 1)
+      if (!ws[addr]) return
+      ws[addr].s = moyenneRows.has(ri) ? MOY() : C(ri % 2 === 1)
     })
   })
   return ws
+}
+
+function calcMoyenne(grades) {
+  const valid = grades.filter(g => g.value != null)
+  if (!valid.length) return null
+  const totalCoeff = valid.reduce((s, g) => s + (g.coefficient ?? 1), 0)
+  const totalPts = valid.reduce((s, g) => s + g.value * (g.coefficient ?? 1), 0)
+  return totalCoeff > 0 ? (totalPts / totalCoeff).toFixed(2) : null
 }
 
 function dl(wb, filename) {
@@ -51,17 +66,43 @@ function dl(wb, filename) {
 async function exportNotesGlobal(students) {
   const ids = students.map(s => s.id)
   const [{ data: grades }, { data: comments }] = await Promise.all([
-    supabase.from('grades').select('*, students(first_name,last_name,class,schools(name))').in('student_id', ids).order('last_name', { referencedTable: 'students' }).order('term'),
+    supabase.from('grades').select('*, students(id,first_name,last_name,class,schools(name))').in('student_id', ids).order('last_name', { referencedTable: 'students' }).order('term'),
     supabase.from('comments').select('*, students(first_name,last_name,class,schools(name))').in('student_id', ids).order('last_name', { referencedTable: 'students' }),
   ])
 
-  const notesH = ['Établissement', 'Nom', 'Prénom', 'Classe', 'Trimestre', 'Matière', 'Note /20', 'Coefficient', 'Date', 'Commentaire']
-  const notesR = (grades ?? []).map(g => [
-    g.students?.schools?.name ?? '', g.students?.last_name ?? '', g.students?.first_name ?? '',
-    g.students?.class ?? '', g.term ?? '', g.subject ?? '',
-    g.value != null ? Number(g.value) : '', g.coefficient != null ? Number(g.coefficient) : '',
-    g.date ? new Date(g.date).toLocaleDateString('fr-FR') : '', g.comment ?? '',
-  ])
+  // Notes groupées par élève, avec ligne moyenne par trimestre
+  const notesH = ['Établissement', 'Nom', 'Prénom', 'Classe', 'Trimestre', 'Note /20', 'Coefficient', 'Date', 'Commentaire']
+  const notesR = []
+  const moyenneRowIndexes = new Set()
+
+  // Grouper par élève puis par trimestre
+  const byStudent = {}
+  ;(grades ?? []).forEach(g => {
+    const sid = g.student_id
+    if (!byStudent[sid]) byStudent[sid] = { info: g.students, byTerm: {} }
+    const t = g.term ?? 'Sans trimestre'
+    if (!byStudent[sid].byTerm[t]) byStudent[sid].byTerm[t] = []
+    byStudent[sid].byTerm[t].push(g)
+  })
+
+  Object.values(byStudent).forEach(({ info, byTerm }) => {
+    Object.entries(byTerm).forEach(([term, tGrades]) => {
+      tGrades.forEach(g => {
+        notesR.push([
+          info?.schools?.name ?? '', info?.last_name ?? '', info?.first_name ?? '',
+          info?.class ?? '', term,
+          g.value != null ? Number(g.value) : '', g.coefficient != null ? Number(g.coefficient) : '',
+          g.date ? new Date(g.date).toLocaleDateString('fr-FR') : '', g.comment ?? '',
+        ])
+      })
+      // Ligne moyenne
+      const m = calcMoyenne(tGrades)
+      if (m !== null) {
+        moyenneRowIndexes.add(notesR.length)
+        notesR.push(['', '', '', '', `↳ Moyenne ${term}`, `${m}/20`, '', '', ''])
+      }
+    })
+  })
 
   const apprecH = ['Établissement', 'Nom', 'Prénom', 'Classe', 'Trimestre', 'Appréciation', 'Auteur']
   const apprecR = (comments ?? []).map(c => [
@@ -70,7 +111,7 @@ async function exportNotesGlobal(students) {
   ])
 
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, makeSheet(notesH, notesR, [20, 16, 14, 10, 14, 18, 10, 10, 12, 35]), 'Notes')
+  XLSX.utils.book_append_sheet(wb, makeSheet(notesH, notesR, [20, 16, 14, 10, 14, 10, 10, 12, 35], false, moyenneRowIndexes), 'Notes')
   XLSX.utils.book_append_sheet(wb, makeSheet(apprecH, apprecR, [20, 16, 14, 10, 14, 55, 16], true), 'Appréciations')
   dl(wb, 'Notes_et_appreciations.xlsx')
 }
@@ -117,11 +158,30 @@ async function exportDossierEleve(student) {
 
   const wb = XLSX.utils.book_new()
 
-  // Notes
+  // Notes avec moyennes par trimestre
+  const notesRowsInd = []
+  const moyRowsInd = new Set()
+  const byTermInd = {}
+  ;(grades ?? []).forEach(g => {
+    const t = g.term ?? 'Sans trimestre'
+    if (!byTermInd[t]) byTermInd[t] = []
+    byTermInd[t].push(g)
+  })
+  Object.entries(byTermInd).forEach(([term, tg]) => {
+    tg.forEach(g => {
+      notesRowsInd.push([term, g.value != null ? Number(g.value) : '', g.coefficient != null ? Number(g.coefficient) : '', g.date ? new Date(g.date).toLocaleDateString('fr-FR') : '', g.comment ?? ''])
+    })
+    const m = calcMoyenne(tg)
+    if (m !== null) {
+      moyRowsInd.add(notesRowsInd.length)
+      notesRowsInd.push([`↳ Moyenne ${term}`, `${m}/20`, '', '', ''])
+    }
+  })
   XLSX.utils.book_append_sheet(wb, makeSheet(
-    ['Trimestre', 'Matière', 'Note /20', 'Coefficient', 'Date', 'Commentaire'],
-    (grades ?? []).map(g => [g.term ?? '', g.subject ?? '', g.value != null ? Number(g.value) : '', g.coefficient != null ? Number(g.coefficient) : '', g.date ? new Date(g.date).toLocaleDateString('fr-FR') : '', g.comment ?? '']),
-    [14, 20, 10, 10, 12, 40]
+    ['Trimestre', 'Note /20', 'Coefficient', 'Date', 'Commentaire'],
+    notesRowsInd,
+    [16, 10, 10, 12, 40],
+    false, moyRowsInd
   ), 'Notes')
 
   // Appréciations
